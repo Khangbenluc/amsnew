@@ -203,14 +203,14 @@ elif st.session_state.page == "Tạo Bảng Kê":
                     gold_type = st.selectbox("Loại vàng", ["Vàng SJC", "Vàng 9999", "Vàng 24K", "Vàng 18K", "Vàng Trắng"], key=f"gold_type_{i}", index=st.session_state.get(f"gold_type_index_{i}", 0))
 
                 # Nhập đơn giá thủ công
-                manual_price_million = st.number_input(
-                    "Nhập đơn giá (triệu VND)",
-                    min_value=0.0,
-                    format="%.3f",
+                manual_price_thousand = st.number_input(
+                    "Nhập đơn giá (nghìn VND)",
+                    min_value=0,
+                    format="%d",
                     key=f"manual_price_{i}",
-                    value=st.session_state.get(f"manual_price_{i}", 0.0)
+                    value=st.session_state.get(f"manual_price_{i}", 0)
                 )
-                unit_price = manual_price_million * 1_000_000
+                unit_price = manual_price_thousand * 1000
 
                 item_amount = weight * unit_price
                 total_amount += item_amount
@@ -285,7 +285,6 @@ elif st.session_state.page == "Tạo Bảng Kê":
             del st.session_state.seller_address
             st.session_state.num_items = 1
             st.session_state.step = 1
-            st.rerun()
     
     st.markdown("---")
     if st.button("Về Trang Chủ", width='stretch'):
