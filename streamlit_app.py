@@ -156,21 +156,27 @@ if st.session_state.page == "Trang Chủ":
     # Biểu đồ thống kê lịch sử
     st.subheader("Biểu đồ Thống Kê Lịch Sử")
     if os.path.exists("data.xlsx"):
-        df_history = pd.read_excel("data.xlsx")
-        df_history['Ngày'] = pd.to_datetime(df_history['Ngày'])
-        df_history = df_history.sort_values(by='Ngày')
-        
-        # Biểu đồ tổng tiền theo ngày
-        df_daily_total = df_history.groupby(df_history['Ngày'].dt.date)['Thành Tiền (VND)'].sum().reset_index()
-        fig = px.bar(df_daily_total, x='Ngày', y='Thành Tiền (VND)', title='Tổng Tiền Mua Vàng Hàng Ngày', 
-                     labels={'Ngày': 'Ngày', 'Thành Tiền (VND)': 'Tổng Tiền (VND)'})
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("Lịch Sử Giao Dịch")
-        
-        # Sắp xếp lại thứ tự cột để dễ nhìn hơn
-        desired_order = ['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Loại Vàng', 'Cân Nặng (gram)', 'Đơn Giá (VND)', 'Thành Tiền (VND)']
-        st.dataframe(df_history[desired_order], use_container_width=True)
+        try:
+            df_history = pd.read_excel("data.xlsx")
+            df_history['Ngày'] = pd.to_datetime(df_history['Ngày'])
+            df_history = df_history.sort_values(by='Ngày')
+            
+            # Biểu đồ tổng tiền theo ngày
+            df_daily_total = df_history.groupby(df_history['Ngày'].dt.date)['Thành Tiền (VND)'].sum().reset_index()
+            fig = px.bar(df_daily_total, x='Ngày', y='Thành Tiền (VND)', title='Tổng Tiền Mua Vàng Hàng Ngày', 
+                         labels={'Ngày': 'Ngày', 'Thành Tiền (VND)': 'Tổng Tiền (VND)'})
+            st.plotly_chart(fig, use_container_width=True)
+    
+            st.subheader("Lịch Sử Giao Dịch")
+            
+            # Sắp xếp lại thứ tự cột để dễ nhìn hơn
+            desired_order = ['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Loại Vàng', 'Cân Nặng (gram)', 'Đơn Giá (VND)', 'Thành Tiền (VND)']
+            st.dataframe(df_history[desired_order], use_container_width=True)
+        except Exception as e:
+            st.error(f"Đã xảy ra lỗi khi đọc file dữ liệu. File có thể đã bị hỏng. Vui lòng xóa file để bắt đầu lại: {e}")
+            if st.button("Xóa file dữ liệu lỗi", type="secondary"):
+                os.remove("data.xlsx")
+                st.success("Đã xóa file dữ liệu thành công! Vui lòng làm mới trang để tiếp tục.", icon="🗑️")
     else:
         st.info("Chưa có dữ liệu giao dịch nào để hiển thị.")
 
