@@ -173,9 +173,8 @@ if st.session_state.page == "Trang Chủ":
         
         # Sắp xếp lại thứ tự cột để dễ nhìn hơn và tránh KeyError
         desired_order = ['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Loại Vàng', 'Cân Nặng (gram)', 'Đơn Giá (VND)', 'Thành Tiền (VND)']
-        existing_columns = [col for col in desired_order if col in df_history.columns]
-        
-        st.dataframe(df_history[existing_columns], use_container_width=True)
+        # Dòng này đã được thay đổi
+        st.dataframe(df_history[desired_order], use_container_width=True)
     else:
         st.info("Chưa có dữ liệu giao dịch nào để hiển thị.")
 
