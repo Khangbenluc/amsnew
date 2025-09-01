@@ -18,19 +18,6 @@ from reportlab.lib.units import cm
 st.set_page_config(layout="wide", page_title="Hệ Thống Quản Lý Vàng")
 
 # --- Hàm hỗ trợ ---
-@st.cache_data
-def load_unit_prices():
-    """Tải dữ liệu đơn giá từ file dongia.xlsx."""
-    if os.path.exists("dongia.xlsx"):
-        df = pd.read_excel("dongia.xlsx")
-        return {row['Loại Vàng']: row['Đơn Giá'] for _, row in df.iterrows()}
-    return {}
-
-def save_unit_prices(df):
-    """Lưu dữ liệu đơn giá vào file dongia.xlsx."""
-    df.to_excel("dongia.xlsx", index=False)
-    st.success("Đã lưu đơn giá thành công!", icon="✅")
-
 def save_bill(bill_data):
     """Lưu bảng kê vào file data.xlsx."""
     try:
@@ -140,16 +127,11 @@ if 'step' not in st.session_state:
 if st.session_state.page == "Trang Chủ":
     st.header("Dashboard Tổng Quan")
 
-    col1, col2, _ = st.columns([1, 1, 2])
+    col1, _ = st.columns([1, 2])
     with col1:
         if st.button("Tạo Bảng Kê", width='stretch', type="primary"):
             st.session_state.page = "Tạo Bảng Kê"
             st.session_state.step = 1
-            st.rerun()
-
-    with col2:
-        if st.button("Chỉnh Sửa Đơn Giá", width='stretch', type="secondary"):
-            st.session_state.page = "Chỉnh Sửa Đơn Giá"
             st.rerun()
 
     st.markdown("---")
@@ -175,54 +157,18 @@ if st.session_state.page == "Trang Chủ":
     # Nút xóa dữ liệu
     st.markdown("---")
     st.subheader("Quản lý dữ liệu")
-    col1, col2, _ = st.columns([1, 1, 2])
+    col1, _ = st.columns([1, 2])
     with col1:
         if st.button("Xóa Toàn Bộ Dữ Liệu", width='stretch', type="secondary"):
             if os.path.exists("data.xlsx"):
                 os.remove("data.xlsx")
-            if os.path.exists("dongia.xlsx"):
-                os.remove("dongia.xlsx")
             st.success("Đã xóa toàn bộ dữ liệu thành công!", icon="🗑️")
             st.rerun()
-
-elif st.session_state.page == "Chỉnh Sửa Đơn Giá":
-    st.header("Chỉnh Sửa Đơn Giá")
-    st.markdown("Sử dụng bảng dưới đây để cập nhật đơn giá vàng.")
-
-    with st.form("unit_price_form"):
-        # Tải dữ liệu đơn giá hiện tại
-        unit_prices = load_unit_prices()
-        if unit_prices:
-            df_unit_prices = pd.DataFrame(list(unit_prices.items()), columns=['Loại Vàng', 'Đơn Giá'])
-        else:
-            df_unit_prices = pd.DataFrame([{'Loại Vàng': '', 'Đơn Giá': 0}]*10)
-        
-        # Hiển thị bảng có thể chỉnh sửa
-        edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", width='stretch')
-        
-        submitted = st.form_submit_button("Lưu Đơn Giá", type="primary", width='stretch')
-
-        if submitted:
-            save_unit_prices(edited_df.dropna(how='all'))
-    
-    st.markdown("---")
-    if st.button("Về Trang Chủ", width='stretch'):
-        st.session_state.page = "Trang Chủ"
-        st.rerun()
 
 elif st.session_state.page == "Tạo Bảng Kê":
     st.header("Tạo Bảng Kê")
     st.markdown("Điền thông tin vào form dưới đây để tạo bảng kê mua vàng.")
     
-    # Tải đơn giá vàng
-    unit_prices = load_unit_prices()
-    if not unit_prices:
-        st.warning("Vui lòng chỉnh sửa và lưu đơn giá trước khi tạo bảng kê.")
-        if st.button("Đến Trang Chỉnh Sửa Đơn Giá", width='stretch'):
-            st.session_state.page = "Chỉnh Sửa Đơn Giá"
-            st.rerun()
-        st.stop()
-
     if st.session_state.step == 1:
         with st.form("seller_info_form"):
             st.subheader("Thông tin người bán")
@@ -254,21 +200,17 @@ elif st.session_state.page == "Tạo Bảng Kê":
                 with col1:
                     weight = st.number_input(f"Cân nặng (gram)", min_value=0.0, format="%.2f", key=f"weight_{i}", value=st.session_state.get(f"weight_{i}", 0.0))
                 with col2:
-                    gold_type = st.selectbox("Loại vàng", list(unit_prices.keys()), key=f"gold_type_{i}", index=list(unit_prices.keys()).index(st.session_state.get(f"gold_type_{i}", list(unit_prices.keys())[0])))
+                    gold_type = st.selectbox("Loại vàng", ["Vàng SJC", "Vàng 9999", "Vàng 24K", "Vàng 18K", "Vàng Trắng"], key=f"gold_type_{i}", index=st.session_state.get(f"gold_type_index_{i}", 0))
 
-                # Logic mới để nhập đơn giá thủ công
-                manual_price_mode = st.checkbox("Nhập đơn giá thủ công (triệu VND)", key=f"manual_price_mode_{i}", value=st.session_state.get(f"manual_price_mode_{i}", False))
-
-                unit_price = unit_prices.get(gold_type, 0)
-                if manual_price_mode:
-                    manual_price_million = st.number_input(
-                        "Nhập đơn giá (triệu VND)",
-                        min_value=0.0,
-                        format="%.3f",
-                        key=f"manual_price_{i}",
-                        value=st.session_state.get(f"manual_price_{i}", unit_price / 1_000_000 if unit_price > 0 else 0)
-                    )
-                    unit_price = manual_price_million * 1_000_000
+                # Nhập đơn giá thủ công
+                manual_price_million = st.number_input(
+                    "Nhập đơn giá (triệu VND)",
+                    min_value=0.0,
+                    format="%.3f",
+                    key=f"manual_price_{i}",
+                    value=st.session_state.get(f"manual_price_{i}", 0.0)
+                )
+                unit_price = manual_price_million * 1_000_000
 
                 item_amount = weight * unit_price
                 total_amount += item_amount
@@ -336,11 +278,8 @@ elif st.session_state.page == "Tạo Bảng Kê":
             for i in range(st.session_state.num_items):
                 del st.session_state[f"weight_{i}"]
                 del st.session_state[f"gold_type_{i}"]
-                if f"manual_price_mode_{i}" in st.session_state:
-                    del st.session_state[f"manual_price_mode_{i}"]
-                if f"manual_price_{i}" in st.session_state:
-                    del st.session_state[f"manual_price_{i}"]
-
+                del st.session_state[f"manual_price_{i}"]
+                
             del st.session_state.seller_name
             del st.session_state.seller_id
             del st.session_state.seller_address
