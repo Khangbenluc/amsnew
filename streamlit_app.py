@@ -131,25 +131,20 @@ def convert_to_vietnamese_words(number):
 st.title("Ứng Dụng Quản Lý Mua Vàng")
 st.markdown("---")
 
-# Điều hướng các trang bằng sidebar
-page = st.sidebar.radio("Điều hướng", ["Trang Chủ", "Tạo Bảng Kê", "Chỉnh Sửa Đơn Giá"])
+# Điều hướng trang bằng session_state
+if 'page' not in st.session_state:
+    st.session_state.page = "Trang Chủ"
 
-if 'page' in st.session_state:
-    page = st.session_state.page
-
-if page == "Trang Chủ":
+if st.session_state.page == "Trang Chủ":
     st.header("Dashboard Tổng Quan")
 
-    col1, col2, col3 = st.columns([1, 1, 2])
-
+    col1, col2, _ = st.columns([1, 1, 2])
     with col1:
-        # Nút Tạo Bảng Kê
         if st.button("Tạo Bảng Kê", use_container_width=True, type="primary"):
             st.session_state.page = "Tạo Bảng Kê"
             st.rerun()
 
     with col2:
-        # Nút Chỉnh Sửa Đơn Giá
         if st.button("Chỉnh Sửa Đơn Giá", use_container_width=True, type="secondary"):
             st.session_state.page = "Chỉnh Sửa Đơn Giá"
             st.rerun()
@@ -187,7 +182,7 @@ if page == "Trang Chủ":
             st.success("Đã xóa toàn bộ dữ liệu thành công!", icon="🗑️")
             st.rerun()
 
-elif page == "Chỉnh Sửa Đơn Giá":
+elif st.session_state.page == "Chỉnh Sửa Đơn Giá":
     st.header("Chỉnh Sửa Đơn Giá")
     st.markdown("Sử dụng bảng dưới đây để cập nhật đơn giá vàng.")
     
@@ -204,7 +199,7 @@ elif page == "Chỉnh Sửa Đơn Giá":
     if st.button("Lưu Đơn Giá", use_container_width=True, type="primary"):
         save_unit_prices(edited_df.dropna(how='all'))
 
-elif page == "Tạo Bảng Kê":
+elif st.session_state.page == "Tạo Bảng Kê":
     st.header("Tạo Bảng Kê")
     st.markdown("Điền thông tin vào form dưới đây để tạo bảng kê mua vàng.")
     
