@@ -109,7 +109,7 @@ def generate_pdf(bill_data):
     # Chữ ký
     story.append(Paragraph("Chữ ký người bán", styles['NormalStyle']))
     story.append(Spacer(1, 40))
-    story.append(Paragraph("Chữ ký người mua", styles['NormalStyle']))
+    story.append(Paragraph("Giám đốc", styles['NormalStyle']))
     
     try:
         doc.build(story)
