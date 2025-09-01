@@ -188,19 +188,22 @@ if st.session_state.page == "Trang Chủ":
 elif st.session_state.page == "Chỉnh Sửa Đơn Giá":
     st.header("Chỉnh Sửa Đơn Giá")
     st.markdown("Sử dụng bảng dưới đây để cập nhật đơn giá vàng.")
-    
-    # Tải dữ liệu đơn giá hiện tại
-    unit_prices = load_unit_prices()
-    if unit_prices:
-        df_unit_prices = pd.DataFrame(list(unit_prices.items()), columns=['Loại Vàng', 'Đơn Giá'])
-    else:
-        df_unit_prices = pd.DataFrame([{'Loại Vàng': '', 'Đơn Giá': 0}]*10)
-    
-    # Hiển thị bảng có thể chỉnh sửa
-    edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", width='stretch')
-    
-    if st.button("Lưu Đơn Giá", width='stretch', type="primary"):
-        save_unit_prices(edited_df.dropna(how='all'))
+
+    with st.form("unit_price_form"):
+        # Tải dữ liệu đơn giá hiện tại
+        unit_prices = load_unit_prices()
+        if unit_prices:
+            df_unit_prices = pd.DataFrame(list(unit_prices.items()), columns=['Loại Vàng', 'Đơn Giá'])
+        else:
+            df_unit_prices = pd.DataFrame([{'Loại Vàng': '', 'Đơn Giá': 0}]*10)
+        
+        # Hiển thị bảng có thể chỉnh sửa
+        edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", width='stretch')
+        
+        submitted = st.form_submit_button("Lưu Đơn Giá", type="primary", width='stretch')
+
+        if submitted:
+            save_unit_prices(edited_df.dropna(how='all'))
     
     st.markdown("---")
     if st.button("Về Trang Chủ", width='stretch'):
