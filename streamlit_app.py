@@ -174,7 +174,7 @@ if st.session_state.page == "Trang Chủ":
     st.subheader("Quản lý dữ liệu")
     col1, col2, _ = st.columns([1, 1, 2])
     with col1:
-        if st.button("Xóa Toàn Bộ Dữ Liệu", width='stretch', type="primary"):
+        if st.button("Xóa Toàn Bộ Dữ Liệu", width='stretch', type="secondary"):
             if os.path.exists("data.xlsx"):
                 os.remove("data.xlsx")
             if os.path.exists("dongia.xlsx"):
@@ -254,7 +254,7 @@ elif st.session_state.page == "Tạo Bảng Kê":
                     st.rerun()
         with col_remove:
             if st.session_state.num_items > 1:
-                if st.form_submit_button("Xóa Món Hàng Cuối", type="primary"):
+                if st.form_submit_button("Xóa Món Hàng Cuối", type="secondary"):
                     st.session_state.num_items -= 1
                     st.rerun()
 
