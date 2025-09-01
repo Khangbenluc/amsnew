@@ -18,12 +18,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 # --- Cài đặt font cho PDF (hỗ trợ tiếng Việt) ---
 try:
-    # Tải và đăng ký font Arial từ URL nếu cần, hoặc giả sử font đã có
-    # Trong môi trường này, chúng ta cần giả định font có sẵn
     pdfmetrics.registerFont(TTFont('Arial', 'arial.ttf'))
     FONT_NAME = 'Arial'
 except Exception:
-    # Nếu không thể đăng ký font, sử dụng font mặc định
     st.warning("Không thể đăng ký font 'Arial.ttf'. PDF sẽ dùng font mặc định.")
     FONT_NAME = 'Helvetica'
 
@@ -32,8 +29,8 @@ except Exception:
 st.set_page_config(layout="wide", page_title="Hệ Thống Quản Lý Vàng")
 
 # --- Hàm hỗ trợ ---
-def save_bill(bill_data):
-    """Lưu bảng kê vào file data.xlsx."""
+def save_bill(bill_items_data):
+    """Lưu dữ liệu các món hàng vào file data.xlsx."""
     try:
         # Tải dữ liệu cũ hoặc tạo DataFrame mới nếu file chưa tồn tại
         if os.path.exists("data.xlsx"):
@@ -41,8 +38,8 @@ def save_bill(bill_data):
         else:
             df_existing = pd.DataFrame(columns=['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Cân Nặng (gram)', 'Loại Vàng', 'Đơn Giá (VND)', 'Thành Tiền (VND)'])
 
-        df_new_row = pd.DataFrame([bill_data])
-        df_updated = pd.concat([df_existing, df_new_row], ignore_index=True)
+        df_new_rows = pd.DataFrame(bill_items_data)
+        df_updated = pd.concat([df_existing, df_new_rows], ignore_index=True)
         df_updated.to_excel("data.xlsx", index=False)
         st.success("Bảng kê đã được lưu thành công!", icon="✅")
     except Exception as e:
@@ -171,9 +168,8 @@ if st.session_state.page == "Trang Chủ":
 
         st.subheader("Lịch Sử Giao Dịch")
         
-        # Sắp xếp lại thứ tự cột để dễ nhìn hơn và tránh KeyError
+        # Sắp xếp lại thứ tự cột để dễ nhìn hơn
         desired_order = ['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Loại Vàng', 'Cân Nặng (gram)', 'Đơn Giá (VND)', 'Thành Tiền (VND)']
-        # Dòng này đã được thay đổi
         st.dataframe(df_history[desired_order], use_container_width=True)
     else:
         st.info("Chưa có dữ liệu giao dịch nào để hiển thị.")
@@ -217,6 +213,8 @@ elif st.session_state.page == "Tạo Bảng Kê":
 
             items = []
             total_amount = 0
+            # Danh sách để lưu các món hàng đã được "san phẳng"
+            items_to_save = []
 
             for i in range(st.session_state.num_items):
                 st.markdown(f"**Món hàng {i+1}**")
@@ -244,6 +242,18 @@ elif st.session_state.page == "Tạo Bảng Kê":
                     'gold_type': gold_type,
                     'unit_price': unit_price,
                     'amount': item_amount
+                })
+
+                # Chuẩn bị dữ liệu cho việc lưu vào Excel
+                items_to_save.append({
+                    'Ngày': datetime.now(),
+                    'Tên Người Bán': st.session_state.seller_name,
+                    'Số CCCD': st.session_state.seller_id,
+                    'Địa Chỉ': st.session_state.seller_address,
+                    'Cân Nặng (gram)': weight,
+                    'Loại Vàng': gold_type,
+                    'Đơn Giá (VND)': unit_price,
+                    'Thành Tiền (VND)': item_amount
                 })
                 st.markdown("---")
 
@@ -285,7 +295,7 @@ elif st.session_state.page == "Tạo Bảng Kê":
             }
 
             # Lưu vào file Excel
-            save_bill(bill_data)
+            save_bill(items_to_save)
 
             # Tạo và cung cấp file PDF để tải xuống
             pdf_file = generate_pdf(bill_data)
