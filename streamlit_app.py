@@ -256,14 +256,29 @@ elif st.session_state.page == "Tạo Bảng Kê":
                 with col2:
                     gold_type = st.selectbox("Loại vàng", list(unit_prices.keys()), key=f"gold_type_{i}", index=list(unit_prices.keys()).index(st.session_state.get(f"gold_type_{i}", list(unit_prices.keys())[0])))
 
-                item_amount = weight * unit_prices.get(gold_type, 0)
+                # Logic mới để nhập đơn giá thủ công
+                manual_price_mode = st.checkbox("Nhập đơn giá thủ công (triệu VND)", key=f"manual_price_mode_{i}", value=st.session_state.get(f"manual_price_mode_{i}", False))
+
+                unit_price = unit_prices.get(gold_type, 0)
+                if manual_price_mode:
+                    manual_price_million = st.number_input(
+                        "Nhập đơn giá (triệu VND)",
+                        min_value=0.0,
+                        format="%.3f",
+                        key=f"manual_price_{i}",
+                        value=st.session_state.get(f"manual_price_{i}", unit_price / 1_000_000 if unit_price > 0 else 0)
+                    )
+                    unit_price = manual_price_million * 1_000_000
+
+                item_amount = weight * unit_price
+                total_amount += item_amount
+                
                 items.append({
                     'weight': weight,
                     'gold_type': gold_type,
-                    'unit_price': unit_prices.get(gold_type, 0),
+                    'unit_price': unit_price,
                     'amount': item_amount
                 })
-                total_amount += item_amount
                 st.markdown("---")
 
             col_add, col_remove, _ = st.columns([1, 1, 4])
@@ -321,6 +336,11 @@ elif st.session_state.page == "Tạo Bảng Kê":
             for i in range(st.session_state.num_items):
                 del st.session_state[f"weight_{i}"]
                 del st.session_state[f"gold_type_{i}"]
+                if f"manual_price_mode_{i}" in st.session_state:
+                    del st.session_state[f"manual_price_mode_{i}"]
+                if f"manual_price_{i}" in st.session_state:
+                    del st.session_state[f"manual_price_{i}"]
+
             del st.session_state.seller_name
             del st.session_state.seller_id
             del st.session_state.seller_address
