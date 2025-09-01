@@ -134,6 +134,8 @@ st.markdown("---")
 # Điều hướng trang bằng session_state
 if 'page' not in st.session_state:
     st.session_state.page = "Trang Chủ"
+if 'step' not in st.session_state:
+    st.session_state.step = 1
 
 if st.session_state.page == "Trang Chủ":
     st.header("Dashboard Tổng Quan")
@@ -142,6 +144,7 @@ if st.session_state.page == "Trang Chủ":
     with col1:
         if st.button("Tạo Bảng Kê", width='stretch', type="primary"):
             st.session_state.page = "Tạo Bảng Kê"
+            st.session_state.step = 1
             st.rerun()
 
     with col2:
@@ -198,6 +201,11 @@ elif st.session_state.page == "Chỉnh Sửa Đơn Giá":
     
     if st.button("Lưu Đơn Giá", width='stretch', type="primary"):
         save_unit_prices(edited_df.dropna(how='all'))
+    
+    st.markdown("---")
+    if st.button("Về Trang Chủ", width='stretch'):
+        st.session_state.page = "Trang Chủ"
+        st.rerun()
 
 elif st.session_state.page == "Tạo Bảng Kê":
     st.header("Tạo Bảng Kê")
@@ -212,68 +220,80 @@ elif st.session_state.page == "Tạo Bảng Kê":
             st.rerun()
         st.stop()
 
-    # Form nhập thông tin
-    with st.form("bill_form"):
-        st.subheader("Thông tin người bán")
-        seller_name = st.text_input("Tên người bán")
-        seller_id = st.text_input("Số CCCD")
-        seller_address = st.text_input("Địa chỉ")
+    if st.session_state.step == 1:
+        with st.form("seller_info_form"):
+            st.subheader("Thông tin người bán")
+            st.session_state.seller_name = st.text_input("Tên người bán", value=st.session_state.get('seller_name', ''))
+            st.session_state.seller_id = st.text_input("Số CCCD", value=st.session_state.get('seller_id', ''))
+            st.session_state.seller_address = st.text_input("Địa chỉ", value=st.session_state.get('seller_address', ''))
 
-        st.subheader("Chi tiết món hàng (Tối đa 5 món)")
-        
-        # Sử dụng session state để quản lý số lượng món hàng
-        if 'num_items' not in st.session_state:
-            st.session_state.num_items = 1
-
-        items = []
-        total_amount = 0
-
-        for i in range(st.session_state.num_items):
-            st.markdown(f"**Món hàng {i+1}**")
-            col1, col2 = st.columns(2)
-            with col1:
-                weight = st.number_input(f"Cân nặng (gram)", min_value=0.0, format="%.2f", key=f"weight_{i}")
-            with col2:
-                gold_type = st.selectbox("Loại vàng", list(unit_prices.keys()), key=f"gold_type_{i}")
-
-            item_amount = weight * unit_prices.get(gold_type, 0)
-            items.append({
-                'weight': weight,
-                'gold_type': gold_type,
-                'unit_price': unit_prices.get(gold_type, 0),
-                'amount': item_amount
-            })
-            total_amount += item_amount
-            st.markdown("---")
-
-        col_add, col_remove, _ = st.columns([1, 1, 4])
-        with col_add:
-            if st.session_state.num_items < 5:
-                if st.form_submit_button("Thêm Món Hàng", type="secondary"):
-                    st.session_state.num_items += 1
+            submitted = st.form_submit_button("Tiếp", type="primary", width='stretch')
+            if submitted:
+                if not st.session_state.seller_name or not st.session_state.seller_id or not st.session_state.seller_address:
+                    st.error("Vui lòng nhập đầy đủ thông tin người bán.")
+                else:
+                    st.session_state.step = 2
                     st.rerun()
-        with col_remove:
-            if st.session_state.num_items > 1:
-                if st.form_submit_button("Xóa Món Hàng Cuối", type="secondary"):
-                    st.session_state.num_items -= 1
+    
+    elif st.session_state.step == 2:
+        with st.form("bill_items_form"):
+            st.subheader("Chi tiết món hàng (Tối đa 5 món)")
+            
+            if 'num_items' not in st.session_state:
+                st.session_state.num_items = 1
+
+            items = []
+            total_amount = 0
+
+            for i in range(st.session_state.num_items):
+                st.markdown(f"**Món hàng {i+1}**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    weight = st.number_input(f"Cân nặng (gram)", min_value=0.0, format="%.2f", key=f"weight_{i}", value=st.session_state.get(f"weight_{i}", 0.0))
+                with col2:
+                    gold_type = st.selectbox("Loại vàng", list(unit_prices.keys()), key=f"gold_type_{i}", index=list(unit_prices.keys()).index(st.session_state.get(f"gold_type_{i}", list(unit_prices.keys())[0])))
+
+                item_amount = weight * unit_prices.get(gold_type, 0)
+                items.append({
+                    'weight': weight,
+                    'gold_type': gold_type,
+                    'unit_price': unit_prices.get(gold_type, 0),
+                    'amount': item_amount
+                })
+                total_amount += item_amount
+                st.markdown("---")
+
+            col_add, col_remove, _ = st.columns([1, 1, 4])
+            with col_add:
+                if st.session_state.num_items < 5:
+                    if st.form_submit_button("Thêm Món Hàng", type="secondary"):
+                        st.session_state.num_items += 1
+                        st.rerun()
+            with col_remove:
+                if st.session_state.num_items > 1:
+                    if st.form_submit_button("Xóa Món Hàng Cuối", type="secondary"):
+                        st.session_state.num_items -= 1
+                        st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center;'>Tổng Tiền: {total_amount:,.0f} VND</h2>", unsafe_allow_html=True)
+            
+            col_back, col_submit = st.columns([1, 1])
+            with col_back:
+                if st.form_submit_button("Quay Lại", type="secondary"):
+                    st.session_state.step = 1
                     st.rerun()
+            with col_submit:
+                submitted = st.form_submit_button("Đã Chuẩn Bị Tiền", type="primary", width='stretch')
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='text-align: center;'>Tổng Tiền: {total_amount:,.0f} VND</h2>", unsafe_allow_html=True)
-        
-        submitted = st.form_submit_button("Đã Chuẩn Bị Tiền", type="primary", width='stretch')
-
-    if submitted:
-        if not seller_name or not seller_id or not seller_address:
-            st.error("Vui lòng nhập đầy đủ thông tin người bán.")
-        else:
+        if submitted:
             vietnam_now = datetime.now()
             
             bill_data = {
                 'Ngày': vietnam_now,
-                'Tên Người Bán': seller_name,
-                'Số CCCD': seller_id,
-                'Địa Chỉ': seller_address,
+                'Tên Người Bán': st.session_state.seller_name,
+                'Số CCCD': st.session_state.seller_id,
+                'Địa Chỉ': st.session_state.seller_address,
                 'Cân Nặng (gram)': [item['weight'] for item in items],
                 'Loại Vàng': [item['gold_type'] for item in items],
                 'Đơn Giá (VND)': [item['unit_price'] for item in items],
@@ -289,11 +309,23 @@ elif st.session_state.page == "Tạo Bảng Kê":
                 st.download_button(
                     label="Tải Xuống Bảng Kê PDF",
                     data=pdf_file,
-                    file_name=f"Bảng Kê Mua Hàng {seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
+                    file_name=f"Bang_ke_{st.session_state.seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
                     mime="application/pdf",
                     width='stretch'
                 )
             
             # Reset form sau khi lưu thành công
+            for i in range(st.session_state.num_items):
+                del st.session_state[f"weight_{i}"]
+                del st.session_state[f"gold_type_{i}"]
+            del st.session_state.seller_name
+            del st.session_state.seller_id
+            del st.session_state.seller_address
             st.session_state.num_items = 1
+            st.session_state.step = 1
             st.rerun()
+    
+    st.markdown("---")
+    if st.button("Về Trang Chủ", width='stretch'):
+        st.session_state.page = "Trang Chủ"
+        st.rerun()
