@@ -13,6 +13,20 @@ from reportlab.lib import colors
 import io
 import time
 from reportlab.lib.units import cm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# --- Cài đặt font cho PDF (hỗ trợ tiếng Việt) ---
+try:
+    # Tải và đăng ký font Arial từ URL nếu cần, hoặc giả sử font đã có
+    # Trong môi trường này, chúng ta cần giả định font có sẵn
+    pdfmetrics.registerFont(TTFont('Arial', 'arial.ttf'))
+    FONT_NAME = 'Arial'
+except Exception:
+    # Nếu không thể đăng ký font, sử dụng font mặc định
+    st.warning("Không thể đăng ký font 'Arial.ttf'. PDF sẽ dùng font mặc định.")
+    FONT_NAME = 'Helvetica'
+
 
 # --- Cài đặt cơ bản của ứng dụng ---
 st.set_page_config(layout="wide", page_title="Hệ Thống Quản Lý Vàng")
@@ -39,11 +53,11 @@ def generate_pdf(bill_data):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A5, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='TitleStyle', alignment=TA_CENTER, fontSize=14, fontName='Helvetica-Bold'))
-    styles.add(ParagraphStyle(name='SubTitleStyle', alignment=TA_CENTER, fontSize=10, fontName='Helvetica'))
-    styles.add(ParagraphStyle(name='NormalStyle', alignment=TA_CENTER, fontSize=10, fontName='Helvetica'))
-    styles.add(ParagraphStyle(name='Heading1Style', fontSize=12, fontName='Helvetica-Bold'))
-    styles.add(ParagraphStyle(name='NormalLeft', fontSize=10, fontName='Helvetica'))
+    styles.add(ParagraphStyle(name='TitleStyle', alignment=TA_CENTER, fontSize=14, fontName=FONT_NAME + '-Bold'))
+    styles.add(ParagraphStyle(name='SubTitleStyle', alignment=TA_CENTER, fontSize=10, fontName=FONT_NAME))
+    styles.add(ParagraphStyle(name='NormalStyle', alignment=TA_CENTER, fontSize=10, fontName=FONT_NAME))
+    styles.add(ParagraphStyle(name='Heading1Style', fontSize=12, fontName=FONT_NAME + '-Bold'))
+    styles.add(ParagraphStyle(name='NormalLeft', fontSize=10, fontName=FONT_NAME))
 
     story = []
     
@@ -60,7 +74,7 @@ def generate_pdf(bill_data):
     story.append(Paragraph(f"Tên người bán: {bill_data['Tên Người Bán']}", styles['NormalLeft']))
     story.append(Paragraph(f"Số CCCD: {bill_data['Số CCCD']}", styles['NormalLeft']))
     story.append(Paragraph(f"Địa chỉ: {bill_data['Địa Chỉ']}", styles['NormalLeft']))
-    story.append(Paragraph(f"Ngày: {bill_data['Ngày']}", styles['NormalLeft']))
+    story.append(Paragraph(f"Ngày: {bill_data['Ngày'].strftime('%d/%m/%Y %H:%M:%S')}", styles['NormalLeft']))
     story.append(Spacer(1, 15))
 
     # Bảng chi tiết
@@ -79,11 +93,11 @@ def generate_pdf(bill_data):
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), FONT_NAME + '-Bold'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (2, -1), (2, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, -1), (3, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, -1), (2, -1), FONT_NAME + '-Bold'),
+        ('FONTNAME', (3, -1), (3, -1), FONT_NAME + '-Bold'),
     ])
     
     table = Table(data_table, colWidths=[2.2*cm, 3.5*cm, 3.5*cm, 4.0*cm])
@@ -93,11 +107,17 @@ def generate_pdf(bill_data):
     story.append(Paragraph(f"Tổng số tiền bằng chữ: {convert_to_vietnamese_words(total_amount)}", styles['NormalLeft']))
     story.append(Spacer(1, 20))
 
-    # Chữ ký
-    story.append(Paragraph("Chữ ký người bán", styles['NormalStyle']))
+    # Chữ ký (sử dụng bảng để đặt cạnh nhau)
+    signatures = [['Chữ ký người bán', 'Chữ ký người mua']]
+    sig_table = Table(signatures, colWidths=[7*cm, 7*cm])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+    ]))
+    story.append(sig_table)
     story.append(Spacer(1, 40))
-    story.append(Paragraph("Chữ ký người mua", styles['NormalStyle']))
-    
+
     try:
         doc.build(story)
     except Exception as e:
@@ -150,7 +170,11 @@ if st.session_state.page == "Trang Chủ":
         st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Lịch Sử Giao Dịch")
-        st.dataframe(df_history, use_container_width=True)
+        
+        # Sắp xếp lại thứ tự cột để dễ nhìn hơn
+        desired_order = ['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Loại Vàng', 'Cân Nặng (gram)', 'Đơn Giá (VND)', 'Thành Tiền (VND)']
+        
+        st.dataframe(df_history[desired_order], use_container_width=True)
     else:
         st.info("Chưa có dữ liệu giao dịch nào để hiển thị.")
 
