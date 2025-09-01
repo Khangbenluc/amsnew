@@ -1,6 +1,304 @@
-import streamlit as st
+# -*- coding: utf-8 -*-
 
-st.title("🎈 My new app")
-st.write(
-    "Let's start building! For help and inspiration, head over to [docs.streamlit.io](https://docs.streamlit.io/)."
-)
+import streamlit as st
+import pandas as pd
+import os
+from datetime import datetime
+import plotly.express as px
+from reportlab.lib.pagesizes import A5
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+import io
+import time
+from reportlab.lib.units import cm
+
+# --- Cài đặt cơ bản của ứng dụng ---
+st.set_page_config(layout="wide", page_title="Hệ Thống Quản Lý Vàng")
+
+# --- Hàm hỗ trợ ---
+@st.cache_data
+def load_unit_prices():
+    """Tải dữ liệu đơn giá từ file dongia.xlsx."""
+    if os.path.exists("dongia.xlsx"):
+        df = pd.read_excel("dongia.xlsx")
+        return {row['Loại Vàng']: row['Đơn Giá'] for _, row in df.iterrows()}
+    return {}
+
+def save_unit_prices(df):
+    """Lưu dữ liệu đơn giá vào file dongia.xlsx."""
+    df.to_excel("dongia.xlsx", index=False)
+    st.success("Đã lưu đơn giá thành công!", icon="✅")
+
+def save_bill(bill_data):
+    """Lưu bảng kê vào file data.xlsx."""
+    try:
+        # Tải dữ liệu cũ hoặc tạo DataFrame mới nếu file chưa tồn tại
+        if os.path.exists("data.xlsx"):
+            df_existing = pd.read_excel("data.xlsx")
+        else:
+            df_existing = pd.DataFrame(columns=['Ngày', 'Tên Người Bán', 'Số CCCD', 'Địa Chỉ', 'Cân Nặng (gram)', 'Loại Vàng', 'Đơn Giá (VND)', 'Thành Tiền (VND)'])
+
+        df_new_row = pd.DataFrame([bill_data])
+        df_updated = pd.concat([df_existing, df_new_row], ignore_index=True)
+        df_updated.to_excel("data.xlsx", index=False)
+        st.success("Bảng kê đã được lưu thành công!", icon="✅")
+    except Exception as e:
+        st.error(f"Đã xảy ra lỗi khi lưu bảng kê: {e}", icon="❌")
+
+def generate_pdf(bill_data):
+    """Tạo file PDF từ dữ liệu bảng kê."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A5, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='TitleStyle', alignment=TA_CENTER, fontSize=14, fontName='Helvetica-Bold'))
+    styles.add(ParagraphStyle(name='SubTitleStyle', alignment=TA_CENTER, fontSize=10, fontName='Helvetica'))
+    styles.add(ParagraphStyle(name='NormalStyle', alignment=TA_CENTER, fontSize=10, fontName='Helvetica'))
+    styles.add(ParagraphStyle(name='Heading1Style', fontSize=12, fontName='Helvetica-Bold'))
+    styles.add(ParagraphStyle(name='NormalLeft', fontSize=10, fontName='Helvetica'))
+
+    story = []
+    
+    # Tiêu đề và thông tin chung
+    story.append(Paragraph("CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM", styles['NormalStyle']))
+    story.append(Paragraph("Độc lập - Tự do - Hạnh phúc", styles['NormalStyle']))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Tên đơn vị: Công Ty Trách Nhiệm Hữu Hạn Trang Sức Vàng Anh Đào", styles['NormalLeft']))
+    story.append(Paragraph("BẢNG KÊ MUA HÀNG HOÁ, DỊCH VỤ CỦA TỔ CHỨC, CÁ NHÂN KHÔNG KINH DOANH KHÔNG CÓ HOÁ ĐƠN, CHỨNG TỪ", styles['TitleStyle']))
+    story.append(Paragraph("(Theo mẫu 01/TNDN)", styles['SubTitleStyle']))
+    story.append(Spacer(1, 15))
+
+    # Thông tin người bán
+    story.append(Paragraph(f"Tên người bán: {bill_data['Tên Người Bán']}", styles['NormalLeft']))
+    story.append(Paragraph(f"Số CCCD: {bill_data['Số CCCD']}", styles['NormalLeft']))
+    story.append(Paragraph(f"Địa chỉ: {bill_data['Địa Chỉ']}", styles['NormalLeft']))
+    story.append(Paragraph(f"Ngày: {bill_data['Ngày']}", styles['NormalLeft']))
+    story.append(Spacer(1, 15))
+
+    # Bảng chi tiết
+    data_table = [['Cân Nặng (gram)', 'Loại Vàng', 'Đơn Giá (VND)', 'Thành Tiền (VND)']]
+    for i in range(len(bill_data['Loại Vàng'])):
+        data_table.append([
+            f"{bill_data['Cân Nặng (gram)'][i]:,.2f}",
+            bill_data['Loại Vàng'][i],
+            f"{bill_data['Đơn Giá (VND)'][i]:,.0f}",
+            f"{bill_data['Thành Tiền (VND)'][i]:,.0f}"
+        ])
+    
+    # Thêm dòng tổng tiền
+    total_amount = sum(bill_data['Thành Tiền (VND)'])
+    data_table.append(['', '', 'Tổng Cộng:', f"{total_amount:,.0f} VND"])
+
+    table_style = TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (2, -1), (2, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (3, -1), (3, -1), 'Helvetica-Bold'),
+    ])
+    
+    table = Table(data_table, colWidths=[2.2*cm, 3.5*cm, 3.5*cm, 4.0*cm])
+    table.setStyle(table_style)
+    story.append(table)
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"Tổng số tiền bằng chữ: {convert_to_vietnamese_words(total_amount)}", styles['NormalLeft']))
+    story.append(Spacer(1, 20))
+
+    # Chữ ký
+    story.append(Paragraph("Chữ ký người bán", styles['NormalStyle']))
+    story.append(Spacer(1, 40))
+    story.append(Paragraph("Chữ ký người mua", styles['NormalStyle']))
+    
+    try:
+        doc.build(story)
+    except Exception as e:
+        st.error(f"Đã xảy ra lỗi khi tạo PDF: {e}")
+        return None
+
+    buffer.seek(0)
+    return buffer
+
+def convert_to_vietnamese_words(number):
+    """Chuyển số thành chữ tiếng Việt."""
+    
+    # Để đơn giản, chỉ xử lý đến hàng tỷ
+    num_str = f"{int(number):,.0f}"
+    return f"{num_str.replace(',', '.')} đồng." # Đơn giản hóa, bạn có thể tìm thư viện hoặc viết hàm đầy đủ hơn
+
+# --- Ứng dụng Streamlit ---
+st.title("Ứng Dụng Quản Lý Mua Vàng")
+st.markdown("---")
+
+# Điều hướng các trang bằng sidebar
+page = st.sidebar.radio("Điều hướng", ["Trang Chủ", "Tạo Bảng Kê", "Chỉnh Sửa Đơn Giá"])
+
+if 'page' in st.session_state:
+    page = st.session_state.page
+
+if page == "Trang Chủ":
+    st.header("Dashboard Tổng Quan")
+
+    col1, col2, col3 = st.columns([1, 1, 2])
+
+    with col1:
+        # Nút Tạo Bảng Kê
+        if st.button("Tạo Bảng Kê", use_container_width=True, type="primary"):
+            st.session_state.page = "Tạo Bảng Kê"
+            st.rerun()
+
+    with col2:
+        # Nút Chỉnh Sửa Đơn Giá
+        if st.button("Chỉnh Sửa Đơn Giá", use_container_width=True, type="secondary"):
+            st.session_state.page = "Chỉnh Sửa Đơn Giá"
+            st.rerun()
+
+    st.markdown("---")
+
+    # Biểu đồ thống kê lịch sử
+    st.subheader("Biểu đồ Thống Kê Lịch Sử")
+    if os.path.exists("data.xlsx"):
+        df_history = pd.read_excel("data.xlsx")
+        df_history['Ngày'] = pd.to_datetime(df_history['Ngày'])
+        df_history = df_history.sort_values(by='Ngày')
+        
+        # Biểu đồ tổng tiền theo ngày
+        df_daily_total = df_history.groupby(df_history['Ngày'].dt.date)['Thành Tiền (VND)'].sum().reset_index()
+        fig = px.bar(df_daily_total, x='Ngày', y='Thành Tiền (VND)', title='Tổng Tiền Mua Vàng Hàng Ngày', 
+                     labels={'Ngày': 'Ngày', 'Thành Tiền (VND)': 'Tổng Tiền (VND)'})
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Lịch Sử Giao Dịch")
+        st.dataframe(df_history, use_container_width=True)
+    else:
+        st.info("Chưa có dữ liệu giao dịch nào để hiển thị.")
+
+    # Nút xóa dữ liệu
+    st.markdown("---")
+    st.subheader("Quản lý dữ liệu")
+    col1, col2, _ = st.columns([1, 1, 2])
+    with col1:
+        if st.button("Xóa Toàn Bộ Dữ Liệu", use_container_width=True, type="danger"):
+            if os.path.exists("data.xlsx"):
+                os.remove("data.xlsx")
+            if os.path.exists("dongia.xlsx"):
+                os.remove("dongia.xlsx")
+            st.success("Đã xóa toàn bộ dữ liệu thành công!", icon="🗑️")
+            st.rerun()
+
+elif page == "Chỉnh Sửa Đơn Giá":
+    st.header("Chỉnh Sửa Đơn Giá")
+    st.markdown("Sử dụng bảng dưới đây để cập nhật đơn giá vàng.")
+    
+    # Tải dữ liệu đơn giá hiện tại
+    unit_prices = load_unit_prices()
+    if unit_prices:
+        df_unit_prices = pd.DataFrame(list(unit_prices.items()), columns=['Loại Vàng', 'Đơn Giá'])
+    else:
+        df_unit_prices = pd.DataFrame([{'Loại Vàng': '', 'Đơn Giá': 0}]*10)
+    
+    # Hiển thị bảng có thể chỉnh sửa
+    edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", use_container_width=True)
+    
+    if st.button("Lưu Đơn Giá", use_container_width=True, type="primary"):
+        save_unit_prices(edited_df.dropna(how='all'))
+
+elif page == "Tạo Bảng Kê":
+    st.header("Tạo Bảng Kê")
+    st.markdown("Điền thông tin vào form dưới đây để tạo bảng kê mua vàng.")
+    
+    # Tải đơn giá vàng
+    unit_prices = load_unit_prices()
+    if not unit_prices:
+        st.warning("Vui lòng chỉnh sửa và lưu đơn giá trước khi tạo bảng kê.")
+        if st.button("Đến Trang Chỉnh Sửa Đơn Giá", use_container_width=True):
+            st.session_state.page = "Chỉnh Sửa Đơn Giá"
+            st.rerun()
+        st.stop()
+
+    # Form nhập thông tin
+    with st.form("bill_form"):
+        st.subheader("Thông tin người bán")
+        seller_name = st.text_input("Tên người bán")
+        seller_id = st.text_input("Số CCCD")
+        seller_address = st.text_input("Địa chỉ")
+
+        st.subheader("Chi tiết món hàng (Tối đa 5 món)")
+        
+        # Sử dụng session state để quản lý số lượng món hàng
+        if 'num_items' not in st.session_state:
+            st.session_state.num_items = 1
+
+        items = []
+        total_amount = 0
+
+        for i in range(st.session_state.num_items):
+            st.markdown(f"**Món hàng {i+1}**")
+            col1, col2 = st.columns(2)
+            with col1:
+                weight = st.number_input(f"Cân nặng (gram)", min_value=0.0, format="%.2f", key=f"weight_{i}")
+            with col2:
+                gold_type = st.selectbox("Loại vàng", list(unit_prices.keys()), key=f"gold_type_{i}")
+
+            item_amount = weight * unit_prices.get(gold_type, 0)
+            items.append({
+                'weight': weight,
+                'gold_type': gold_type,
+                'unit_price': unit_prices.get(gold_type, 0),
+                'amount': item_amount
+            })
+            total_amount += item_amount
+            st.markdown("---")
+
+        col_add, col_remove, _ = st.columns([1, 1, 4])
+        with col_add:
+            if st.session_state.num_items < 5:
+                if st.form_submit_button("Thêm Món Hàng", type="secondary"):
+                    st.session_state.num_items += 1
+                    st.rerun()
+        with col_remove:
+            if st.session_state.num_items > 1:
+                if st.form_submit_button("Xóa Món Hàng Cuối", type="danger"):
+                    st.session_state.num_items -= 1
+                    st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align: center;'>Tổng Tiền: {total_amount:,.0f} VND</h2>", unsafe_allow_html=True)
+        
+        submitted = st.form_submit_button("Đã Chuẩn Bị Tiền", type="primary", use_container_width=True)
+
+    if submitted:
+        if not seller_name or not seller_id or not seller_address:
+            st.error("Vui lòng nhập đầy đủ thông tin người bán.")
+        else:
+            vietnam_now = datetime.now()
+            
+            bill_data = {
+                'Ngày': vietnam_now,
+                'Tên Người Bán': seller_name,
+                'Số CCCD': seller_id,
+                'Địa Chỉ': seller_address,
+                'Cân Nặng (gram)': [item['weight'] for item in items],
+                'Loại Vàng': [item['gold_type'] for item in items],
+                'Đơn Giá (VND)': [item['unit_price'] for item in items],
+                'Thành Tiền (VND)': [item['amount'] for item in items]
+            }
+
+            # Lưu vào file Excel
+            save_bill(bill_data)
+
+            # Tạo và cung cấp file PDF để tải xuống
+            pdf_file = generate_pdf(bill_data)
+            if pdf_file:
+                st.download_button(
+                    label="Tải Xuống Bảng Kê PDF",
+                    data=pdf_file,
+                    file_name=f"Bang_ke_{seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            
+            # Reset form sau khi lưu thành công
+            st.session_state.num_items = 1
+            st.rerun()
