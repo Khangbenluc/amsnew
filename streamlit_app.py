@@ -109,7 +109,7 @@ def generate_pdf(bill_data):
     # Chữ ký
     story.append(Paragraph("Chữ ký người bán", styles['NormalStyle']))
     story.append(Spacer(1, 40))
-    story.append(Paragraph("Giám đốc", styles['NormalStyle']))
+    story.append(Paragraph("Chữ ký người mua", styles['NormalStyle']))
     
     try:
         doc.build(story)
@@ -140,12 +140,12 @@ if st.session_state.page == "Trang Chủ":
 
     col1, col2, _ = st.columns([1, 1, 2])
     with col1:
-        if st.button("Tạo Bảng Kê", use_container_width=True, type="primary"):
+        if st.button("Tạo Bảng Kê", width='stretch', type="primary"):
             st.session_state.page = "Tạo Bảng Kê"
             st.rerun()
 
     with col2:
-        if st.button("Chỉnh Sửa Đơn Giá", use_container_width=True, type="secondary"):
+        if st.button("Chỉnh Sửa Đơn Giá", width='stretch', type="secondary"):
             st.session_state.page = "Chỉnh Sửa Đơn Giá"
             st.rerun()
 
@@ -174,7 +174,7 @@ if st.session_state.page == "Trang Chủ":
     st.subheader("Quản lý dữ liệu")
     col1, col2, _ = st.columns([1, 1, 2])
     with col1:
-        if st.button("Xóa Toàn Bộ Dữ Liệu", use_container_width=True, type="danger"):
+        if st.button("Xóa Toàn Bộ Dữ Liệu", width='stretch', type="primary"):
             if os.path.exists("data.xlsx"):
                 os.remove("data.xlsx")
             if os.path.exists("dongia.xlsx"):
@@ -194,9 +194,9 @@ elif st.session_state.page == "Chỉnh Sửa Đơn Giá":
         df_unit_prices = pd.DataFrame([{'Loại Vàng': '', 'Đơn Giá': 0}]*10)
     
     # Hiển thị bảng có thể chỉnh sửa
-    edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", use_container_width=True)
+    edited_df = st.data_editor(df_unit_prices, num_rows="dynamic", width='stretch')
     
-    if st.button("Lưu Đơn Giá", use_container_width=True, type="primary"):
+    if st.button("Lưu Đơn Giá", width='stretch', type="primary"):
         save_unit_prices(edited_df.dropna(how='all'))
 
 elif st.session_state.page == "Tạo Bảng Kê":
@@ -207,7 +207,7 @@ elif st.session_state.page == "Tạo Bảng Kê":
     unit_prices = load_unit_prices()
     if not unit_prices:
         st.warning("Vui lòng chỉnh sửa và lưu đơn giá trước khi tạo bảng kê.")
-        if st.button("Đến Trang Chỉnh Sửa Đơn Giá", use_container_width=True):
+        if st.button("Đến Trang Chỉnh Sửa Đơn Giá", width='stretch'):
             st.session_state.page = "Chỉnh Sửa Đơn Giá"
             st.rerun()
         st.stop()
@@ -254,14 +254,14 @@ elif st.session_state.page == "Tạo Bảng Kê":
                     st.rerun()
         with col_remove:
             if st.session_state.num_items > 1:
-                if st.form_submit_button("Xóa Món Hàng Cuối", type="danger"):
+                if st.form_submit_button("Xóa Món Hàng Cuối", type="primary"):
                     st.session_state.num_items -= 1
                     st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(f"<h2 style='text-align: center;'>Tổng Tiền: {total_amount:,.0f} VND</h2>", unsafe_allow_html=True)
         
-        submitted = st.form_submit_button("Đã Chuẩn Bị Tiền", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Đã Chuẩn Bị Tiền", type="primary", width='stretch')
 
     if submitted:
         if not seller_name or not seller_id or not seller_address:
@@ -291,7 +291,7 @@ elif st.session_state.page == "Tạo Bảng Kê":
                     data=pdf_file,
                     file_name=f"Bang_ke_{seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
                     mime="application/pdf",
-                    use_container_width=True
+                    width='stretch'
                 )
             
             # Reset form sau khi lưu thành công
