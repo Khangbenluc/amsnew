@@ -289,7 +289,7 @@ elif st.session_state.page == "Tạo Bảng Kê":
                 st.download_button(
                     label="Tải Xuống Bảng Kê PDF",
                     data=pdf_file,
-                    file_name=f"Bang_ke_{seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
+                    file_name=f"Bảng Kê Mua Hàng {seller_name}_{vietnam_now.strftime('%Y%m%d%H%M%S')}.pdf",
                     mime="application/pdf",
                     width='stretch'
                 )
